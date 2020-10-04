@@ -1,192 +1,100 @@
-// import React from 'react';
-// import styles from './login.less';
-
-// export default () => {
-//   return (
-//     <div>
-//       <h1 className={styles.title}>Page login</h1>
-//     </div>
-//   );
-// }
-
-import React, { useState, useEffect } from 'react'
-import pdfjs from 'pdfjs-dist';
-import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.entry';
-import { List as VList } from 'react-virtualized';
-import { TextLayerBuilder } from 'pdfjs-dist/web/pdf_viewer';
-import 'pdfjs-dist/web/pdf_viewer.css';
-import './login.less';
-
-pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
-
-const src = 'http://127.0.0.1:5000/2.pdf';
-
-const firstPageNumber = 1;
-// const devicePixelRatio = window.devicePixelRatio;
-const devicePixelRatio = 0.5;
-
-const Index = props => {
-
-  const [numPages, setNumPages] = useState([]);
-
-  const [pdf, setPdf] = useState(null);
-
-  const [scale, setScale] = useState(1);
-
-  const [currentPage, setCurrentPage] = useState(2)
-
-
-  const renderPdf = async (num, curPdf) => {
-
-    const page = await curPdf.getPage(num + 1);
-    const viewport = page.getViewport({ scale: scale * devicePixelRatio });
-
-    // Prepare canvas using PDF page dimensions
-    const canvas = document.querySelector(`canvas[data-page-number='${num + 1}']`);
-
-    const context = canvas.getContext('2d');
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
-
-    // Render PDF page into canvas context
-    const renderContext = {
-      canvasContext: context,
-      viewport: viewport
-    };
-    const renderTask = page.render(renderContext);
-
-    await renderTask.promise.then(() => {
-      return page.getTextContent()
-    }).then(textContent => {
-      renderText(textContent, num, page, viewport)
-    })
+import React, {Fragment} from 'react'
+import {Form, Input, Button, Checkbox, notification} from 'antd';
+import {Link} from 'umi';
+import {UserOutlined, LockOutlined} from '@ant-design/icons';
+import styles from './login.less';
+import {getUserList, login} from "@/requests/user";
+import '@/utils/config';
+class Login extends React.Component {
+  constructor(props) {
+    super(props);
   }
 
-  const renderText = (textContent, num, page, viewport) => {
-    const textLayerDiv = document.querySelector(`div[data-page-number='${num + 1}']`)
-    if (textLayerDiv) {
-      // 创建新的TextLayerBuilder实例
-      const textLayer = new TextLayerBuilder({
-        textLayerDiv,
-        pageIndex: page.pageIndex,
-        viewport,
+  componentDidMount() {
+    // login()
+  }
+
+  onLogin(values) {
+    console.log('Received values of form: ', values);
+    login(values.email, values.password).then((result) => {
+      console.log(result)
+      notification.open({
+        message: '登录成功',
+        description: '登录成功，跳转到首页',
+        onClick: () => {
+          console.log('Notification Clicked!');
+        },
       });
-
-      textLayer.setTextContent(textContent);
-
-      textLayer.render();
-    }
-  }
-
-  const getPageInfo = async (curPdf) => {
-
-    const page = await curPdf.getPage(firstPageNumber);
-    const viewport = page.getViewport({ scale: scale * devicePixelRatio });
-    const width = viewport.width;
-    const height = viewport.height;
-    const array = []
-    for (let index = 0; index < curPdf.numPages; index++) {
-      array.push({ width, height })
-    }
-    setNumPages(array)
-  }
-
-  const getItemHeight = ({ index }) => numPages[index].height;
-
-  const renderItem = ({ key, index, style }) => (
-    <div key={key} style={{ ...style, border: '1px solid #dddddd' }} data-index={index}>
-      <canvas
-        data-page-number={index + 1}
-        style={{ width: style.width, height: style.height }}
-      />
-      <div
-        data-page-number={index + 1}
-        className="textLayer"
-        style={{ width: style.width, height: style.height }}
-      ></div>
-    </div>
-  )
-
-  const fetchPdf = async () => {
-    const loadingTask = pdfjs.getDocument(src);
-
-    const curPdf = await loadingTask.promise;
-    await setPdf(curPdf);
-    getPageInfo(curPdf);
+      global.constants.username = values.email;
+      global.constants.loginState = true;
+      localStorage.setItem('userData', JSON.stringify(values));
+      this.props.history.push('/test');
+    })
+    // getUserList().then((userList) => {
+    //   console.log(userList.results);
+    //   userList.results.forEach((item) => {
+    //
+    //     console.log(item)
+    //     if (values.email == item.email && values.password == item.password) {
+    //       notification.open({
+    //         message: '登录成功',
+    //         description:
+    //           '登录成功，跳转到首页',
+    //         onClick: () => {
+    //           console.log('Notification Clicked!');
+    //         },
+    //       });
+    //       this.props.history.push('/test');
+    //     }
+    //   })
+    // });
   };
 
-  useEffect(() => {
-    fetchPdf();
-
-  }, [])
-
-  return (
-    <div>
-      <div className="toolBus">
-        <div className='pagination'>
-          <button
-            className="toolbarButton pageUp"
-            title="Previous Page"
-            id="previous"
-            disabled={currentPage === 1}
-            onClick={()=>{
-              const previousPage = currentPage - 1;
-              setCurrentPage(previousPage);
-            }}
-          >
-            Previous Page
-          </button>
-          <input
-            type="number"
-            id="pageNumber"
-            className="toolbarField pageNumber"
-            value={currentPage}
+  render() {
+    return (
+      <Form
+        name="normal_login"
+        className={styles.loginForm}
+        initialValues={{remember: true}}
+        onFinish={this.onLogin.bind(this)}
+      >
+        <Form.Item
+          name="email"
+          rules={[{required: true, message: 'Please input your email!'}]}
+        >
+          <Input prefix={<UserOutlined className="site-form-item-icon"/>} placeholder="email"/>
+        </Form.Item>
+        <Form.Item
+          name="password"
+          rules={[{required: true, message: 'Please input your Password!'}]}
+        >
+          <Input
+            prefix={<LockOutlined className="site-form-item-icon"/>}
+            type="password"
+            placeholder="Password"
           />
-          / {numPages.length}
-          &nbsp;&nbsp;&nbsp;&nbsp;
-          <button
-            className="toolbarButton pageDown"
-            title="Next Page"
-            id="next"
-            disabled={currentPage === numPages.length}
-            onClick={()=>{
-              const nextPage = currentPage + 1;
-              setCurrentPage(nextPage);
-            }}
-          >
-            Next Page
-          </button>
-        </div>
-      </div>
-      <div className='container'>
-        {pdf && numPages.length ? (
-          <VList
-            style={{
-              margin: 'auto'
-            }}
-            overscanRowCount={3}
-            scrollToAlignment="start"
-            rowCount={numPages?.length}
-            width={numPages[0].width}
-            height={numPages[0].height}
-            rowRenderer={renderItem}
-            rowHeight={getItemHeight}
-            scrollToIndex={currentPage - 1}
-            onRowsRendered={({
-                               overscanStartIndex,
-                               overscanStopIndex,
-                               startIndex,
-                               stopIndex,
-                             }) => {
-              renderPdf(startIndex, pdf)
-              setCurrentPage(stopIndex + 1)
-            }}
-          />
-        ) : null}
-      </div>
+        </Form.Item>
+        <Form.Item>
+          <Form.Item name="remember" valuePropName="checked" noStyle>
+            <Checkbox>Remember me</Checkbox>
+          </Form.Item>
+          <Link to={'resetPassword'} className={styles.loginFormForgot}>Forgot password</Link>
 
-    </div>
-  )
-};
+          {/*<a className={styles.loginFormForgot} href="">*/}
+          {/*Forgot password*/}
+          {/*</a>*/}
+        </Form.Item>
 
-export default Index;
+        <Form.Item>
+          <Button type="primary" htmlType="submit" className={styles.loginFormButton}>
+            Log in
+          </Button>
+          Or <Link to={'register'}>register now!</Link>
+          {/*<a href="">register now!</a>*/}
+        </Form.Item>
+      </Form>
+    )
+  }
+}
+
+export default Login;
